@@ -82,10 +82,10 @@ def handle_solution_attempt(update: Update, context: CallbackContext):
     user = update.message.from_user
     answer = users_questions.get(user.id).decode('koi8-r')
     if is_answer_right(answer, update.message.text):
-        update.message.reply_text(f'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос».')
+        update.message.reply_text(f'Правильно! Поздравляю! Для следующего вопроса нажмите «Новый вопрос».')
         return CHOOSING
     else:
-        update.message.reply_text('Неправильно. Попробуешь ещё раз?')
+        update.message.reply_text('Неправильно. Попробуйте ещё раз?')
         return ATTEMPT
 
 
@@ -100,8 +100,8 @@ def cancel(update: Update, context: CallbackContext):
 def handle__right_answer(update: Update, context: CallbackContext):
     answer = users_questions.get(update.message.from_user.id).decode('koi8-r')
     update.message.reply_text(
-        f'Вот тебе правильный ответ: {answer} '
-        'Чтобы продолжить нажми «Новый вопрос»'
+        f'Правильный ответ: {answer} '
+        'Чтобы продолжить нажмите «Новый вопрос».'
     )
     return CHOOSING
 
