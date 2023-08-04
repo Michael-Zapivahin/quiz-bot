@@ -1,4 +1,4 @@
 python-dotenv==0.20.0
 python-telegram-bot==13.7
-
+redis==4.6.0
 
