@@ -1,9 +1,7 @@
 import logging
 import os
-import telegram
 import redis
-import functools
-import textwrap
+import random
 
 from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardRemove
@@ -74,14 +72,13 @@ def help_command(update: Update, context: CallbackContext) -> None:
 
 
 def handle_new_question_request(update: Update, context: CallbackContext):
-    print(BOOKS[0][0]['answer'])
-    update.message.reply_text(BOOKS[0][0]['question'])
-    users_questions.set(f'{update.message.from_user.id}', f'{BOOKS[0][0]["answer"]}'.encode('koi8-r'))
+    book_row = random.choice(BOOKS[0])
+    update.message.reply_text(book_row['question'])
+    users_questions.set(f'{update.message.from_user.id}', f'{book_row["answer"]}'.encode('koi8-r'))
     return ATTEMPT
 
 
 def handle_solution_attempt(update: Update, context: CallbackContext):
-    print(update.message.text)
     user = update.message.from_user
     answer = users_questions.get(user.id).decode('koi8-r')
     if is_answer_right(answer, update.message.text):
