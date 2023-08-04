@@ -73,34 +73,26 @@ def help_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Help!')
 
 
-# def echo(update: Update, context: CallbackContext) -> None:
-#     custom_keyboard = [['Новый вопрос', 'Сдаться'], ['Мой счет']]
-#     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
-#     user = update.effective_user
-#     answer = users_questions.get(user.id).decode('koi8-r')
-#     if is_answer_right(answer, update.message.text):
-#         update.message.reply_text(f'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос».', reply_markup=reply_markup)
-#     else:
-#         update.message.reply_text('Неправильно… Попробуешь ещё раз?', reply_markup=reply_markup)
-#     if update.message.text =='Новый вопрос':
-#         update.message.reply_text(BOOKS[0][0]['question'])
-#         users_questions.set(f'{user.id}', f'{BOOKS[0][0]["answer"]}'.encode('koi8-r'))
-
-
-def send_new_question(bot, update, redis_conn):
-
-    question = users_questions.get('question')
-    update.message.reply_text(question)
-
+def handle_new_question_request(update: Update, context: CallbackContext):
+    print(BOOKS[0][0]['answer'])
+    update.message.reply_text(BOOKS[0][0]['question'])
+    users_questions.set(f'{update.message.from_user.id}', f'{BOOKS[0][0]["answer"]}'.encode('koi8-r'))
     return ATTEMPT
 
 
-def processing_response(bot, update, redis_conn):
-    user_id = update.message.from_user.id
-    return ATTEMPT
+def handle_solution_attempt(update: Update, context: CallbackContext):
+    print(update.message.text)
+    user = update.message.from_user
+    answer = users_questions.get(user.id).decode('koi8-r')
+    if is_answer_right(answer, update.message.text):
+        update.message.reply_text(f'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос».')
+        return CHOOSING
+    else:
+        update.message.reply_text('Неправильно. Попробуешь ещё раз?')
+        return ATTEMPT
 
 
-def cancel(bot, update):
+def cancel(update: Update, context: CallbackContext):
     update.message.reply_text(
         f'До свидания, {update.message.from_user.first_name}!',
         reply_markup=ReplyKeyboardRemove()
@@ -108,42 +100,25 @@ def cancel(bot, update):
     return ConversationHandler.END
 
 
-def send_right_answer(bot, update, redis_conn):
-    user_id = update.message.from_user.id
-    answer = ''
+def handle__right_answer(update: Update, context: CallbackContext):
+    answer = users_questions.get(update.message.from_user.id).decode('koi8-r')
     update.message.reply_text(
         f'Вот тебе правильный ответ: {answer} '
         'Чтобы продолжить нажми «Новый вопрос»'
     )
-
     return CHOOSING
 
 
 def start_bot(token):
 
-    # handle_new_question = functools.partial(
-    #     send_new_question,
-    #     redis_conn=users_questions
-    # )
-    #
-    # handle_answer = functools.partial(
-    #     processing_response,
-    #     redis_conn=users_questions
-    # )
-    #
-    # handle_right_answer = functools.partial(
-    #     send_right_answer,
-    #     redis_conn=users_questions
-    # )
-
     conversation_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            CHOOSING: [RegexHandler('^Новый вопрос$', send_new_question)],
+            CHOOSING: [RegexHandler('^Новый вопрос$', handle_new_question_request)],
 
             ATTEMPT: [
-                RegexHandler('^Сдаться$', send_right_answer),
-                MessageHandler(Filters.text, processing_response)
+                RegexHandler('^Сдаться$', handle__right_answer),
+                MessageHandler(Filters.text, handle_solution_attempt)
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
