@@ -13,12 +13,11 @@ from vk_api.longpoll import VkEventType
 from vk_api.longpoll import VkLongPoll
 from vk_api.utils import get_random_id
 
-from tools import is_answer_right
-from tools import load_book
+from bots_tools import is_answer_right, load_book
 
 
 logger = logging.getLogger(__name__)
-users_questions = redis.Redis(host='localhost', port=6379, db=0)
+users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
 BOOKS = []
 
 
@@ -31,7 +30,7 @@ def get_custom_keyboard():
 
 def handle_new_question(event, vk):
     book_row = random.choice(BOOKS[0])
-    users_questions.set(f'{event.user_id}', f'{book_row["answer"]}'.encode('koi8-r'))
+    users_right_answers.set(f'{event.user_id}', f'{book_row["answer"]}'.encode('koi8-r'))
     vk.messages.send(
         peer_id=event.user_id,
         random_id=get_random_id(),
@@ -41,7 +40,7 @@ def handle_new_question(event, vk):
 
 
 def handle_solution_attempt(event, vk):
-    answer = users_questions.get(event.user_id).decode('koi8-r')
+    answer = users_right_answers.get(event.user_id).decode('koi8-r')
     if is_answer_right(answer, event.text):
         vk.messages.send(
             peer_id=event.user_id,
@@ -59,7 +58,7 @@ def handle_solution_attempt(event, vk):
 
 
 def handle_give_up(event, vk):
-    answer = users_questions.get(event.user_id).decode('koi8-r')
+    answer = users_right_answers.get(event.user_id).decode('koi8-r')
     response = (
         f'Правильный ответ: {answer} '
         'Чтобы продолжить нажмите «Новый вопрос».'

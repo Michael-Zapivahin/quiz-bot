@@ -9,7 +9,7 @@ def is_answer_right(answer, message):
     return answer.strip().lower() == message.strip().lower()
 
 
-def load_book(file_name='questions/1vs1200.txt') -> list:
+def load_book(file_name='questions/1vs1200.txt'):
     book = []
     with open(file_name, "rb") as file:
         data = file.read().decode('koi8-r')
