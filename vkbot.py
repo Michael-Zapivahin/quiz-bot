@@ -2,9 +2,6 @@ import logging
 import os
 import random
 import sys
-import textwrap
-import re
-import json
 
 import redis
 import vk_api
@@ -16,7 +13,8 @@ from vk_api.longpoll import VkEventType
 from vk_api.longpoll import VkLongPoll
 from vk_api.utils import get_random_id
 
-from tgbot import is_answer_right, load_book
+from tools import is_answer_right
+from tools import load_book
 
 
 logger = logging.getLogger(__name__)
@@ -26,10 +24,8 @@ BOOKS = []
 
 def get_custom_keyboard():
     keyboard = VkKeyboard()
-
     keyboard.add_button('Новый вопрос', color=VkKeyboardColor.PRIMARY)
     keyboard.add_button('Сдаться', color=VkKeyboardColor.NEGATIVE)
-
     return keyboard.get_keyboard()
 
 
@@ -47,19 +43,12 @@ def handle_new_question(event, vk):
 def handle_solution_attempt(event, vk):
     answer = users_questions.get(event.user_id).decode('koi8-r')
     if is_answer_right(answer, event.text):
-        message = textwrap.dedent(
-            '''
-            Правильно! Поздравляю!
-            Для следующего вопроса нажмите «Новый вопрос».
-            '''
-        )
         vk.messages.send(
             peer_id=event.user_id,
             random_id=get_random_id(),
             keyboard=get_custom_keyboard(),
-            message=message
+            message=f'Правильно! Поздравляю! Для следующего вопроса нажмите «Новый вопрос».'
         )
-
     else:
         vk.messages.send(
             peer_id=event.user_id,

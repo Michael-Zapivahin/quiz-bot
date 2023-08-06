@@ -1,10 +1,20 @@
 
-def load_books():
+def is_answer_right(answer, message):
+    point_index = answer.find('.')
+    if point_index >= 0:
+        answer = answer[0:answer.find('.')]
+    point_index = message.find('.')
+    if point_index >= 0:
+        message = message[0:message.find('.')]
+    return answer.strip().lower() == message.strip().lower()
+
+
+def load_book(file_name='questions/1vs1200.txt') -> list:
     book = []
-    with open('questions/1vs1200.txt', "rb") as file:
+    with open(file_name, "rb") as file:
         data = file.read().decode('koi8-r')
-    is_it_question = False;
-    is_it_answer = False;
+    is_it_question = False
+    is_it_answer = False
     question, answer = '', ''
     for line in data.splitlines():
         if not line:
@@ -26,10 +36,4 @@ def load_books():
             is_it_question = False
             is_it_answer = True
             continue
-    print(book)
-
-
-if __name__ == '__main__':
-    load_books()
-
-
+    return book
