@@ -17,7 +17,7 @@ from bots_tools import is_answer_right, load_book
 
 
 logger = logging.getLogger(__name__)
-users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
+# users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
 BOOKS = []
 
 
@@ -28,9 +28,9 @@ def get_custom_keyboard():
     return keyboard.get_keyboard()
 
 
-def handle_new_question(event, vk):
+def handle_new_question(event, vk, redis_conn):
     book_row = random.choice(BOOKS[0])
-    users_right_answers.set(f'{event.user_id}', f'{book_row["answer"]}'.encode('koi8-r'))
+    redis_conn.set(f'{event.user_id}', f'{book_row["answer"]}'.encode('koi8-r'))
     vk.messages.send(
         peer_id=event.user_id,
         random_id=get_random_id(),
@@ -39,7 +39,7 @@ def handle_new_question(event, vk):
     )
 
 
-def handle_solution_attempt(event, vk):
+def handle_solution_attempt(event, vk, users_right_answers):
     answer = users_right_answers.get(event.user_id).decode('koi8-r')
     if is_answer_right(answer, event.text):
         vk.messages.send(
@@ -57,7 +57,7 @@ def handle_solution_attempt(event, vk):
         )
 
 
-def handle_give_up(event, vk):
+def handle_give_up(event, vk, users_right_answers):
     answer = users_right_answers.get(event.user_id).decode('koi8-r')
     response = (
         f'Правильный ответ: {answer} '
@@ -74,20 +74,21 @@ def handle_give_up(event, vk):
 def start_bot(vk_session):
     api_vk = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
+    users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
 
     for event in longpoll.listen():
         if not (event.type == VkEventType.MESSAGE_NEW and event.to_me):
             continue
 
         if event.text == 'Новый вопрос':
-            handle_new_question(event, api_vk)
+            handle_new_question(event, api_vk, users_right_answers)
             continue
 
         if event.text == 'Сдаться':
-            handle_give_up(event, api_vk)
+            handle_give_up(event, api_vk, users_right_answers)
             continue
 
-        handle_solution_attempt(event, api_vk)
+        handle_solution_attempt(event, api_vk, users_right_answers)
 
 
 def main():
