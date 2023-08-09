@@ -13,12 +13,12 @@ from vk_api.longpoll import VkEventType
 from vk_api.longpoll import VkLongPoll
 from vk_api.utils import get_random_id
 
-from bots_tools import is_answer_right, load_book
+from quiz_tools import is_answer_right, load_books
 
 
 logger = logging.getLogger(__name__)
 # users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
-BOOKS = []
+BOOKS = load_books()
 
 
 def get_custom_keyboard():
@@ -29,7 +29,7 @@ def get_custom_keyboard():
 
 
 def handle_new_question(event, vk, redis_conn):
-    book_row = random.choice(BOOKS[0])
+    book_row = random.choice(random.choice(BOOKS))
     redis_conn.set(f'{event.user_id}', f'{book_row["answer"]}'.encode('koi8-r'))
     vk.messages.send(
         peer_id=event.user_id,
@@ -99,7 +99,7 @@ def main():
     load_dotenv()
     vk_token = os.getenv('VK_TOKEN')
     vk_session = vk_api.VkApi(token=vk_token)
-    BOOKS.append(load_book())
+
     while True:
         try:
             start_bot(vk_session)

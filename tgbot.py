@@ -10,7 +10,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler
 from telegram.ext import Filters, CallbackContext, ConversationHandler
 from telegram.ext import RegexHandler
 
-from bots_tools import load_book, is_answer_right
+from quiz_tools import load_books, is_answer_right
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -19,7 +19,7 @@ logging.basicConfig(
 CHOOSING, ATTEMPT = 1, 2
 logger = logging.getLogger(__name__)
 users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
-BOOKS = []
+BOOKS = load_books()
 
 
 def start(update: Update, context: CallbackContext):
@@ -34,7 +34,7 @@ def help_command(update: Update, context: CallbackContext):
 
 
 def handle_new_question_request(update: Update, context: CallbackContext):
-    book_row = random.choice(BOOKS[0])
+    book_row = random.choice(random.choice(BOOKS))
     update.message.reply_text(book_row['question'])
     users_right_answers.set(f'{update.message.from_user.id}', f'{book_row["answer"]}'.encode('koi8-r'))
     return ATTEMPT
@@ -91,7 +91,6 @@ def start_bot(token):
 
 
 def main():
-    BOOKS.append(load_book())
     load_dotenv()
     token = os.getenv('TG_TOKEN')
     start_bot(token)
