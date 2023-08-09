@@ -15,10 +15,7 @@ from vk_api.utils import get_random_id
 
 from quiz_tools import is_answer_right, load_books
 
-
 logger = logging.getLogger(__name__)
-# users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
-BOOKS = load_books()
 
 
 def get_custom_keyboard():
@@ -28,9 +25,9 @@ def get_custom_keyboard():
     return keyboard.get_keyboard()
 
 
-def handle_new_question(event, vk, redis_conn):
-    book_row = random.choice(random.choice(BOOKS))
-    redis_conn.set(f'{event.user_id}', f'{book_row["answer"]}'.encode('koi8-r'))
+def handle_new_question(event, vk, redis_connect, books):
+    book_row = random.choice(random.choice(books))
+    redis_connect.set(event.user_id, book_row["answer"].encode('koi8-r'))
     vk.messages.send(
         peer_id=event.user_id,
         random_id=get_random_id(),
@@ -39,8 +36,8 @@ def handle_new_question(event, vk, redis_conn):
     )
 
 
-def handle_solution_attempt(event, vk, users_right_answers):
-    answer = users_right_answers.get(event.user_id).decode('koi8-r')
+def handle_solution_attempt(event, vk, redis_connect):
+    answer = redis_connect.get(event.user_id).decode('koi8-r')
     if is_answer_right(answer, event.text):
         vk.messages.send(
             peer_id=event.user_id,
@@ -57,8 +54,8 @@ def handle_solution_attempt(event, vk, users_right_answers):
         )
 
 
-def handle_give_up(event, vk, users_right_answers):
-    answer = users_right_answers.get(event.user_id).decode('koi8-r')
+def handle_give_up(event, vk, redis_connect):
+    answer = redis_connect.get(event.user_id).decode('koi8-r')
     response = (
         f'Правильный ответ: {answer} '
         'Чтобы продолжить нажмите «Новый вопрос».'
@@ -74,28 +71,25 @@ def handle_give_up(event, vk, users_right_answers):
 def start_bot(vk_session):
     api_vk = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
-    users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
+    redis_connect = redis.Redis(host=os.getenv('REDIS_HOST'), port=os.getenv('REDIS_PORT'), db=0)
+    books = load_books()
 
     for event in longpoll.listen():
         if not (event.type == VkEventType.MESSAGE_NEW and event.to_me):
             continue
 
         if event.text == 'Новый вопрос':
-            handle_new_question(event, api_vk, users_right_answers)
+            handle_new_question(event, api_vk, redis_connect, books)
             continue
 
         if event.text == 'Сдаться':
-            handle_give_up(event, api_vk, users_right_answers)
+            handle_give_up(event, api_vk, redis_connect)
             continue
 
-        handle_solution_attempt(event, api_vk, users_right_answers)
+        handle_solution_attempt(event, api_vk, redis_connect)
 
 
 def main():
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
-    )
     load_dotenv()
     vk_token = os.getenv('VK_TOKEN')
     vk_session = vk_api.VkApi(token=vk_token)
@@ -107,10 +101,10 @@ def main():
             logger.error(f'Бот "{__file__}" упал с ошибкой.')
             logger.exception(err)
             continue
+        except KeyboardInterrupt:
+            sys.exit()
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        sys.exit()
+    main()
+

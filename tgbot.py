@@ -2,6 +2,7 @@ import logging
 import os
 import redis
 import random
+import functools
 
 from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardRemove
@@ -12,14 +13,9 @@ from telegram.ext import RegexHandler
 
 from quiz_tools import load_books, is_answer_right
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
 
 CHOOSING, ATTEMPT = 1, 2
 logger = logging.getLogger(__name__)
-users_right_answers = redis.Redis(host='localhost', port=6379, db=0)
-BOOKS = load_books()
 
 
 def start(update: Update, context: CallbackContext):
@@ -29,20 +25,16 @@ def start(update: Update, context: CallbackContext):
     return CHOOSING
 
 
-def help_command(update: Update, context: CallbackContext):
-    update.message.reply_text('Help!')
-
-
-def handle_new_question_request(update: Update, context: CallbackContext):
-    book_row = random.choice(random.choice(BOOKS))
+def handle_new_question_request(update: Update, context: CallbackContext, redis_connect, books):
+    book_row = random.choice(random.choice(books))
     update.message.reply_text(book_row['question'])
-    users_right_answers.set(f'{update.message.from_user.id}', f'{book_row["answer"]}'.encode('koi8-r'))
+    redis_connect.set(update.message.chat_id, book_row["answer"].encode('koi8-r'))
     return ATTEMPT
 
 
-def handle_solution_attempt(update: Update, context: CallbackContext):
-    user = update.message.from_user
-    answer = users_right_answers.get(user.id).decode('koi8-r')
+def handle_solution_attempt(update: Update, context: CallbackContext, redis_connect):
+    user_id = update.message.chat_id
+    answer = redis_connect.get(user_id).decode('koi8-r')
     if is_answer_right(answer, update.message.text):
         update.message.reply_text(f'Правильно! Поздравляю! Для следующего вопроса нажмите «Новый вопрос».')
         return CHOOSING
@@ -59,8 +51,8 @@ def cancel(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
-def handle__right_answer(update: Update, context: CallbackContext):
-    answer = users_right_answers.get(update.message.from_user.id).decode('koi8-r')
+def handle_right_answer(update, context: CallbackContext, redis_connect):
+    answer = redis_connect.get(update.message.chat_id).decode('koi8-r')
     update.message.reply_text(
         f'Правильный ответ: {answer} '
         'Чтобы продолжить нажмите «Новый вопрос».'
@@ -69,15 +61,32 @@ def handle__right_answer(update: Update, context: CallbackContext):
 
 
 def start_bot(token):
+    books = load_books()
+    redis_connect = redis.Redis(host=os.getenv('REDIS_HOST'), port=os.getenv('REDIS_PORT'), db=0)
+    handle_new_question = functools.partial(
+        handle_new_question_request,
+        redis_connect=redis_connect,
+        books=books
+    )
+
+    handle_solution = functools.partial(
+        handle_solution_attempt,
+        redis_connect=redis_connect
+    )
+
+    handle_giveup = functools.partial(
+        handle_right_answer,
+        redis_connect=redis_connect
+    )
 
     conversation_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            CHOOSING: [RegexHandler('^Новый вопрос$', handle_new_question_request)],
+            CHOOSING: [RegexHandler('^Новый вопрос$', handle_new_question)],
 
             ATTEMPT: [
-                RegexHandler('^Сдаться$', handle__right_answer),
-                MessageHandler(Filters.text, handle_solution_attempt)
+                RegexHandler('^Сдаться$', handle_giveup),
+                MessageHandler(Filters.text, handle_solution)
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)]

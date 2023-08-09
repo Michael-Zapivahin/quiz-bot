@@ -36,6 +36,7 @@ pip install -r requirements.txt
 TG_TOKEN: telegram bot token
 VK_TOKEN: VK goup token
 QUESTIONS_FOLDER: the path to the folder with the question files
+REDIS_HOST, REDIS_PORT: parameters for connect to redis db
 ```  
 # Start
 
